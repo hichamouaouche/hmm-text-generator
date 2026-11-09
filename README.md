@@ -3,184 +3,205 @@
 [![tests](https://github.com/hichamouaouche/hmm-text-generator/actions/workflows/tests.yml/badge.svg)](https://github.com/hichamouaouche/hmm-text-generator/actions/workflows/tests.yml)
 [![Streamlit app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://hmm-text-generator.streamlit.app)
 
-**Application en ligne :** https://hmm-text-generator.streamlit.app
+**Mini-rapport du Lab 03 (module NLP)**
+Hicham Ouaouche · Encadrant : Pr. Zakariae EN-NAIMANI · ENSET Mohammedia, Université Hassan II de Casablanca
 
-Cette application web sert de banc d'essai pour des générateurs de texte. Elle génère des phrases avec un **modèle de Markov caché (HMM) sur les étiquettes morphosyntaxiques**, à états simples ou à états scindés par rôle, ou avec un **modèle trigramme**. Pour chaque phrase, elle affiche la séquence d'états cachés. Elle mesure la qualité de chaque lot de phrases avec quatre métriques, et étiquette n'importe quelle phrase saisie avec l'**algorithme de Viterbi**. Le même HMM est aussi évalué sur du texte réel (Universal Dependencies English EWT).
+| Livrable | Lien |
+|---|---|
+| Application publique | https://hmm-text-generator.streamlit.app |
+| Dépôt GitHub | https://github.com/hichamouaouche/hmm-text-generator |
 
 > **Avertissement :** le corpus est synthétique et la grammaire est minuscule. Les métriques comme *valid tag pattern* sont définies par rapport à ce corpus et ne mesurent pas la qualité de l'anglais réel.
-
-![Accueil](screenshots/01_accueil.png)
 
 ---
 
 ## Sommaire
 
-1. [Problème et solution](#1-problème-et-solution)
-2. [Fonctionnalités de l'application](#2-fonctionnalités-de-lapplication)
-3. [Résultats](#3-résultats)
-4. [Exécution en local](#4-exécution-en-local)
-5. [Déploiement sur Streamlit Community Cloud](#5-déploiement-sur-streamlit-community-cloud)
-6. [Structure du projet](#6-structure-du-projet)
-7. [Méthode](#7-méthode)
-8. [Limites et éthique](#8-limites-et-éthique)
+1. [Objectif du projet](#1-objectif-du-projet)
+2. [Problème et solution](#2-problème-et-solution)
+3. [Application web](#3-application-web)
+4. [Résultats à T = 1,0](#4-résultats-à-t--10)
+5. [Choix de la température](#5-choix-de-la-température)
+6. [Une bonne et une mauvaise phrase](#6-une-bonne-et-une-mauvaise-phrase)
+7. [Ce que le découpage d'états change, et ce qu'il ne change pas](#7-ce-que-le-découpage-détats-change-et-ce-quil-ne-change-pas)
+8. [Test sur texte réel](#8-test-sur-texte-réel)
+9. [Exécution en local](#9-exécution-en-local)
+10. [Déploiement](#10-déploiement)
+11. [Structure du projet](#11-structure-du-projet)
+12. [Limites et éthique](#12-limites-et-éthique)
 
 ---
 
-## 1. Problème et solution
+## 1. Objectif du projet
 
-**Le problème.** Une phrase générée n'a pas de réponse de référence. Juger un générateur sur trois exemples qui « ont l'air bien » ne prouve donc rien : il faut des métriques automatiques calculées sur des centaines de phrases. Un HMM du premier ordre a de plus une mémoire très courte. Après un NOM, il ne sait pas si ce nom est le sujet (un verbe doit suivre) ou le complément (une préposition ou un point doit suivre).
+Ce projet est un **banc d'essai pour générateurs de texte**, sous forme d'application web Streamlit. Il permet de :
+- générer des phrases avec trois modèles : un **HMM sur les étiquettes morphosyntaxiques** (états simples ou états scindés par rôle) et un **trigramme** ;
+- mesurer chaque lot de phrases avec **quatre métriques automatiques** ;
+- étiqueter une phrase saisie avec l'**algorithme de Viterbi** ;
+- comparer les résultats du corpus synthétique à ceux du **texte réel** (UD English EWT).
 
-**La solution.**
-- On estime un HMM supervisé par simple comptage sur 960 phrases d'entraînement étiquetées avec 6 tags. Il n'y a pas de boucle d'apprentissage.
-- On génère une séquence d'états, puis un mot par état, avec une température : les poids d'échantillonnage valent `count^(1/T)`.
-- On compare trois générateurs : le HMM à états simples, le HMM à états scindés par rôle (S/O/P) et un trigramme.
-- On décode avec Viterbi en espace logarithmique, avec un lissage add-k (k = 0,01).
+Le banc d'essai fournit les éléments pour choisir un générateur et une température, par exemple pour un jouet d'écriture ou une autocomplétion.
 
-## 2. Fonctionnalités de l'application
+## 2. Problème et solution
 
-| Onglet | Contenu |
+**Le problème.** Une phrase générée n'a pas de réponse de référence. Juger un générateur sur trois exemples ne prouve rien : il faut des métriques automatiques calculées sur des centaines de phrases. De plus, un HMM du premier ordre ne sait pas si un NOM est le sujet ou le complément. Après un NOM, le tag suivant est VERB avec une probabilité de 0,39, PREP avec 0,22 et PUNCT avec 0,39, quel que soit le rôle du nom.
+
+**La solution, en 5 lignes :**
+1. On estime un HMM supervisé par comptage sur 960 phrases d'entraînement. Le découpage se fait par document, avant tout comptage.
+2. On génère une séquence de tags, puis un mot par tag. La température transforme les poids en `count^(1/T)`.
+3. On scinde NOUN, ADJ et DET en états S (sujet), O (objet) et P (groupe prépositionnel), pour que le modèle sache où il se trouve dans la phrase.
+4. On compare le HMM à un trigramme sur 500 phrases par réglage (graine 42), avec 4 métriques : valid tag pattern, plausible subject-verb, novelty et distinct-2.
+5. On étiquette avec Viterbi en log-probabilités, avec un lissage add-k (k = 0,01).
+
+## 3. Application web
+
+L'application répond aux six exigences de l'énoncé :
+
+| Exigence de l'énoncé | Dans l'application |
 |---|---|
-| **Generate** | Choix du modèle, de la température (0,3 à 3), de la graine et du nombre de phrases (10 à 500). Tableau des phrases avec les états cachés, l'indicateur « motif valide » et le détecteur de copie (mémorisation). Quatre métriques, filtres, et bouton **Download CSV**. |
-| **Tagger** | Le tag Viterbi apparaît sous chaque mot saisi. Un mot inconnu déclenche un avertissement visible, sans plantage. En option, les mots inconnus sont devinés d'après leur **suffixe** (extension). |
-| **Compare models** | Les 3 modèles avec les mêmes réglages, et la courbe de n'importe quelle métrique en fonction de la température. |
-| **Real text** | Le HMM sur UD English EWT, comparé à la baseline « tag le plus fréquent » et à l'extension suffixes, avec les erreurs les plus fréquentes. |
-| **Inside the model** | La carte de chaleur des transitions (états simples et états par rôle) et la précision de l'étiquetage sur le jeu de test. |
-| **How it works** | La méthode, les définitions des métriques, les limites et l'éthique. |
+| 1. Panneau de contrôle | Barre latérale : modèle (HMM simple, HMM par rôle, trigramme), température (0,3 à 3), graine, nombre de phrases (10 à 500) |
+| 2. Bouton Generate et tableau | Une ligne par phrase : les mots, la séquence de tags cachés et une coche « motif valide » |
+| 3. Panneau de métriques | Valid tag pattern, plausible subject-verb, novelty et distinct-2 du lot généré |
+| 4. Tagger | Le tag Viterbi s'affiche sous chaque mot. Un mot inconnu déclenche un avertissement visible, sans plantage |
+| 5. Download CSV | Export des phrases générées |
+| 6. Avertissement visible | Le texte exact de l'énoncé, en haut de la page |
+| Optionnel | Tableau comparatif des 3 modèles et courbe du valid tag pattern selon la température |
 
 | Génération (HMM à états par rôle) | Tagger avec mots inconnus |
 |---|---|
-| ![](screenshots/02_generation_role_split.png) | ![](screenshots/07_tagger_suffixes.png) |
-| **Comparaison des modèles** | **Texte réel (EWT)** |
-| ![](screenshots/08_comparaison.png) | ![](screenshots/10_texte_reel.png) |
+| ![Génération](screenshots/02_generation_role_split.png) | ![Tagger](screenshots/06_tagger_mots_inconnus.png) |
 
-## 3. Résultats
+D'autres captures de l'application déployée se trouvent dans [screenshots/](screenshots/).
 
-### 3.1 Corpus synthétique (500 phrases par modèle, graine 42, T = 1,0)
+## 4. Résultats à T = 1,0
 
-| Modèle | Motif de tags valide | Sujet-verbe plausible | Phrases nouvelles | Distinct-2 |
+500 phrases par modèle, graine 42 :
+
+| Modèle | Valid tag pattern | Plausible subject-verb | Novelty | Distinct-2 |
 |---|---|---|---|---|
 | HMM, états simples | 16,2 % | 14,8 % | 99,8 % | 0,198 |
 | HMM, états par rôle | **100 %** | 60,6 % | 99,4 % | 0,148 |
 | Trigramme | 57,0 % | **76,0 %** | 91,2 % | 0,105 |
 
-- **Étiquetage Viterbi sur les 240 phrases de test :** 100 % pour les deux HMM. Le mot ambigu *watch* (NOM ou VERBE) est correctement étiqueté 37 fois sur 37.
-- **Effet de la température :** pour le trigramme, le taux de motifs valides passe de 63,6 % à T = 0,5 à 44,2 % à T = 2,5, pendant que la diversité augmente. Le HMM à états par rôle reste à 100 % à toutes les températures.
+**Pourquoi le HMM simple obtient un score bas.** Le tag suivant ne dépend que du tag précédent. Après un NOUN, le modèle peut donc :
+- tirer PUNCT juste après le sujet, ce qui donne « the quiet school . » ;
+- tirer un second VERB après l'objet, ce qui donne « the boys visit the rice sell the young farmers . ».
 
-### 3.2 Texte réel : UD English EWT (12 544 phrases d'entraînement, 2 077 de test, 17 tags)
+Seules 16,2 % des séquences générées font partie des 16 motifs vus à l'entraînement.
+
+**Pourquoi le HMM par rôle obtient 100 %.** Les états NOUN_S, NOUN_O et NOUN_P encodent la position dans la phrase :
+- NOUN_S est toujours suivi d'un VERB ;
+- NOUN_O est suivi d'une PREP ou d'un PUNCT ;
+- NOUN_P est suivi d'un PUNCT.
+
+Chaque chemin dans les états reproduit donc l'un des motifs d'entraînement. Le modèle reste pourtant d'ordre 1.
+
+**Étiquetage.** Viterbi atteint 100 % sur les 240 phrases de test pour les deux HMM. Le mot ambigu *watch* (NOUN ou VERB) est bien étiqueté 37 fois sur 37.
+
+## 5. Choix de la température
+
+Taux de motifs valides selon la température (500 phrases par réglage) :
+
+| Modèle | T = 0,5 | T = 1,0 | T = 1,5 | T = 2,5 |
+|---|---|---|---|---|
+| HMM, états simples | 23,8 % | 16,2 % | 20,4 % | 15,4 % |
+| HMM, états par rôle | 100 % | 100 % | 100 % | 100 % |
+| Trigramme | 63,6 % | 57,0 % | 48,2 % | 44,2 % |
+
+- **Jouet d'écriture : HMM par rôle à T = 1,5.** La structure reste à 100 % et la diversité augmente (distinct-2 de 0,148 à 0,161), ce qui donne des phrases variées mais grammaticales.
+- **Autocomplétion : trigramme à T = 0,5.** C'est le réglage le plus sûr et le plus prévisible : 79,2 % de paires sujet-verbe plausibles et 63,6 % de motifs valides.
+
+## 6. Une bonne et une mauvaise phrase
+
+| | Phrase | Modèle | Type d'échec et cause |
+|---|---|---|---|
+| Bonne | « the children eat the bread at the park . » | HMM par rôle, T = 1,0 | Aucun échec : le motif est valide, la paire (children, eat) existe à l'entraînement, et la phrase est nouvelle |
+| Mauvaise | « the boys visit the rice sell the young farmers . » | HMM simple, T = 1,0 | **Structure.** Deux verbes : après le NOUN objet « rice », le modèle tire VERB, parce qu'il ne sait pas que ce nom est l'objet |
+
+Deux autres types d'échec apparaissent aussi :
+- **Sens :** « the foxes lose by the school . » (HMM par rôle). Le motif est valide, mais la paire (foxes, lose) n'existe jamais, parce que le verbe est émis indépendamment du sujet.
+- **Mémorisation :** « the girls leave the park . » (trigramme, T = 0,5). C'est une copie exacte d'une phrase d'entraînement, pas de la créativité.
+
+## 7. Ce que le découpage d'états change, et ce qu'il ne change pas
+
+Le découpage d'états **change la structure**. Le taux de motifs valides passe de 16,2 % à 100 %, à toutes les températures, sans changer l'ordre du modèle. La nouveauté est préservée (99,4 %) et l'étiquetage reste à 100 %.
+
+Il **ne change pas le sens**. Les mots sont toujours émis indépendamment les uns des autres une fois l'état connu. La plausibilité sujet-verbe (60,6 %) reste donc sous celle du trigramme (76,0 %), qui voit les vrais mots précédents. La diversité baisse aussi : distinct-2 passe de 0,198 à 0,148.
+
+C'est un résultat négatif à rapporter : 100 % de structure ne signifie pas 100 % de qualité.
+
+## 8. Test sur texte réel
+
+Le même HMM est évalué sur UD English EWT : 12 544 phrases d'entraînement, 2 077 phrases de test, 17 tags. On lance l'évaluation avec `python -m src.evaluate_real`.
 
 | Modèle | Précision | Mots connus | Mots inconnus | Phrase entière correcte |
 |---|---|---|---|---|
-| Tag le plus fréquent (baseline) | 86,2 % | 90,8 % | 28,6 % | 31,9 % |
-| HMM + Viterbi | 88,1 % | 92,9 % | 28,2 % | 40,4 % |
-| HMM + Viterbi + suffixes (extension) | **91,7 %** | **93,6 %** | **67,7 %** | **49,4 %** |
+| Synthétique : HMM + Viterbi | 100 % | 100 % | — | 100 % |
+| EWT : tag le plus fréquent (baseline) | 86,2 % | 90,8 % | 28,6 % | 31,9 % |
+| EWT : HMM + Viterbi | 88,1 % | 92,9 % | 28,2 % | 40,4 % |
 
-Les mots inconnus représentent 7,5 % des tokens de test.
+**Explication de l'écart.** La grammaire synthétique est minuscule et régulière : 6 tags, 61 mots, 16 motifs. Une fois le tag précédent connu, elle n'est presque plus ambiguë, d'où les 100 %. Le texte réel est très différent :
+- il compte 17 tags, 16 654 mots différents et 10 359 séquences de tags distinctes ;
+- 7,5 % des tokens de test sont des mots inconnus, et seuls 28,2 % d'entre eux sont bien étiquetés.
 
-**Extension : modèle de suffixes pour les mots inconnus** ([src/suffix_hmm.py](src/suffix_hmm.py)). Dans le HMM de base, l'émission lissée d'un mot inconnu vaut `k / (count(tag) + k·V)`. Cette valeur est la plus grande pour les tags **rares**, si bien que les mots inconnus partent vers X ou INTJ. L'extension estime plutôt `P(tag | suffixe)` sur les mots rares de l'entraînement :
-- les suffixes de 1 à 4 lettres sont interpolés, comme dans le tagger TnT ;
-- des règles simples traitent les nombres et la ponctuation.
+Pour un mot inconnu, l'émission lissée `k / (count(tag) + k·V)` est la plus grande pour les tags **rares**. Les noms propres partent donc vers X ou INTJ. Le HMM ne gagne que 1,9 point sur la baseline, et le *valid tag pattern* n'a plus de sens sur du texte réel.
 
-Les paramètres ont été fixés avant l'évaluation, sans réglage sur le jeu de test. La précision sur les mots inconnus passe ainsi de 28,2 % à 67,7 %.
+**Extension proposée.** Le fichier [src/suffix_hmm.py](src/suffix_hmm.py) devine le tag d'un mot inconnu d'après son suffixe :
+- il estime `P(tag | suffixe)` sur les mots rares de l'entraînement, avec des suffixes de 1 à 4 lettres, comme le tagger TnT ;
+- ses paramètres ont été fixés avant l'évaluation, sans réglage sur le test.
 
-## 4. Exécution en local
+Sur EWT, la précision passe de 88,1 % à **91,7 %**, et celle sur les mots inconnus de 28,2 % à **67,7 %**.
+
+## 9. Exécution en local
 
 **Prérequis :** Python 3.10 ou plus récent, et git.
 
 ```bash
-# 1. Récupérer le projet
 git clone https://github.com/hichamouaouche/hmm-text-generator.git
 cd hmm-text-generator
-
-# 2. Créer et activer un environnement virtuel
 python3 -m venv .venv
 source .venv/bin/activate            # Windows : .venv\Scripts\activate
-
-# 3. Installer les dépendances (application + pytest)
 pip install -r requirements-dev.txt
-
-# 4. Lancer l'application
-streamlit run app.py
+streamlit run app.py                 # http://localhost:8501
 ```
 
-L'application s'ouvre sur **http://localhost:8501**. Pour l'arrêter, faites `Ctrl + C` dans le terminal.
-
-**Commandes complémentaires :**
+Commandes complémentaires :
 
 ```bash
 python -m src.evaluate        # corpus synthétique -> results/metrics.json, hmm_results.png, failures.txt
-python -m src.evaluate_real   # texte réel (télécharge UD EWT une fois, ~17 Mo) -> results/ewt_results.json
-python -m pytest -q           # 11 tests : chiffres du guide + tests de l'application
+python -m src.evaluate_real   # texte réel (télécharge UD EWT une fois) -> results/ewt_results.json
+python -m pytest -q           # 11 tests : chiffres de l'énoncé et application
 ```
 
-## 5. Déploiement sur Streamlit Community Cloud
+## 10. Déploiement
 
-1. Poussez le dépôt sur GitHub. Il doit contenir `requirements.txt`, `data/corpus.csv` et `results/ewt_results.json`.
-2. Ouvrez **https://share.streamlit.io** et connectez-vous avec votre compte GitHub.
-3. Cliquez sur **Create app**, puis sur **Deploy a public app from GitHub**.
-4. Remplissez le formulaire :
-   - **Repository :** `hichamouaouche/hmm-text-generator`
-   - **Branch :** `main`
-   - **Main file path :** `app.py`
-   - **App URL :** `hmm-text-generator`
-   - **Advanced settings → Python version :** 3.12
-5. Cliquez sur **Deploy**. La première construction prend 2 à 3 minutes.
-6. Testez l'URL dans une **fenêtre de navigation privée**.
+L'application est hébergée sur **Streamlit Community Cloud**. Le dépôt contient les trois fichiers nécessaires au démarrage : `requirements.txt`, `data/corpus.csv` et `results/ewt_results.json`.
 
-Chaque `git push` sur `main` redéploie l'application automatiquement. Le thème (barre latérale bleu marine, police Inter) est défini dans [.streamlit/config.toml](.streamlit/config.toml).
+1. Ouvrez https://share.streamlit.io, connectez-vous avec GitHub et cliquez sur **Create app**.
+2. Choisissez le dépôt `hichamouaouche/hmm-text-generator`, la branche `main` et le fichier `app.py`.
+3. Cliquez sur **Deploy**.
 
-## 6. Structure du projet
+Chaque `git push` sur `main` redéploie l'application et lance les tests GitHub Actions. L'URL a été testée dans une fenêtre de navigation privée.
+
+## 11. Structure du projet
 
 ```
-app.py                  Application Streamlit (6 onglets)
-src/pipeline.py         HMM, Viterbi, échantillonnage avec température, états par rôle, trigramme, métriques
-src/suffix_hmm.py       Extension : modèle de suffixes pour les mots inconnus
+app.py                  Application Streamlit
+src/pipeline.py         HMM, Viterbi, température, états par rôle, trigramme, métriques
+src/suffix_hmm.py       Extension : suffixes pour les mots inconnus
 src/evaluate.py         Évaluation sur le corpus synthétique
 src/evaluate_real.py    Évaluation sur UD English EWT
-data/corpus.csv         Corpus synthétique étiqueté : 1 200 phrases, 6 tags (nécessaire à l'application)
-results/                Sorties des scripts d'évaluation (lues par l'application)
+data/corpus.csv         Corpus synthétique étiqueté (1 200 phrases, 6 tags)
+results/                Résultats des évaluations
 screenshots/            Captures de l'application déployée
-tests/                  Tests pytest, exécutés par GitHub Actions à chaque push
+tests/                  Tests pytest (GitHub Actions)
 .streamlit/config.toml  Thème de l'application
 ```
 
-## 7. Méthode
+## 12. Limites et éthique
 
-**HMM.** Les états cachés sont les tags (DET, ADJ, NOUN, VERB, PREP, PUNCT) et les observations sont les mots. Trois tables sont estimées par comptage :
-- les probabilités initiales ;
-- les transitions `P(tag | tag précédent)` ;
-- les émissions `P(mot | tag)`.
-
-**Génération.** On tire d'abord une séquence de tags, puis un mot par tag. La température `T` transforme les poids en `count^(1/T)` :
-- `T < 1` : sortie plus sûre et plus répétitive ;
-- `T > 1` : sortie plus variée, avec plus d'erreurs.
-
-**États par rôle.** NOUN, ADJ et DET sont renommés selon leur rôle dans la phrase :
-- **S** avant le verbe ;
-- **O** après le verbe ;
-- **P** dans le groupe prépositionnel.
-
-Le modèle de premier ordre sait ainsi où il se trouve dans la phrase.
-
-**Viterbi.** C'est une programmation dynamique sur les positions et les états. Elle travaille en **log-probabilités** (des sommes plutôt que des produits, donc sans underflow) et utilise un lissage add-k.
-
-**Métriques**, calculées sur tout le lot généré :
-
-| Métrique | Ce qu'elle mesure | Définition |
-|---|---|---|
-| Valid tag pattern | Structure | La séquence de tags est l'une des 16 séquences vues à l'entraînement |
-| Plausible subject-verb | Sens (approximation) | La paire (premier nom, premier verbe) existe dans l'entraînement |
-| Novelty | Mémorisation | Part des phrases qui ne sont pas copiées de l'entraînement |
-| Distinct-2 | Diversité | Bigrammes distincts divisés par le nombre total de bigrammes |
-
-## 8. Limites et éthique
-
-- **Données synthétiques.** Le corpus est produit par une petite grammaire écrite à la main (graine 42). Les métriques *valid tag pattern* et *plausible subject-verb* sont relatives à cette grammaire.
-- **Le 100 % ne se transfère pas.** L'étiquetage atteint 100 % parce que la grammaire synthétique n'est plus ambiguë une fois le tag précédent connu. Sur du texte réel, le même code atteint 88,1 %.
-- **Portée du test réel.** Il utilise un seul treebank anglais, mis en minuscules. Un HMM du premier ordre n'est pas un tagger de l'état de l'art.
-- **Mémorisation.** Un générateur peut recopier ses données d'entraînement : il ne faut jamais l'entraîner sur des messages privés dont on n'est pas propriétaire.
-- **Texte sans intention.** Un texte généré est fluide mais n'a ni sens ni intention : il ne faut pas le présenter comme écrit par une personne.
-- **Licence.** UD English EWT est sous licence CC BY-SA 4.0 (https://github.com/UniversalDependencies/UD_English-EWT). Le dossier `data/ewt/` n'est pas versionné.
-
----
-
-**Auteur :** Hicham Ouaouche · **Encadrant :** Zakariae EN-NAIMANI · ENSET Mohammedia, Université Hassan II de Casablanca
+- **Données synthétiques.** Les métriques de structure et de sens sont relatives à une grammaire de 16 motifs.
+- **Un seul treebank.** Le test réel porte sur un seul corpus anglais, mis en minuscules.
+- **Mémorisation.** Un générateur peut recopier ses données d'entraînement. Il ne faut jamais l'entraîner sur des messages privés dont on n'est pas propriétaire.
+- **Pas d'intention.** Un texte généré ne doit pas être présenté comme écrit par une personne.
+- **Licence.** UD English EWT est sous licence CC BY-SA 4.0. Le dossier `data/ewt/` n'est pas versionné.
