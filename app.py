@@ -17,10 +17,10 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # data/ and results/ are r
 from src.pipeline import HMM, NGramGenerator, coarse, generation_metrics, load_tagged, split_by_document  # noqa: E402
 from src.suffix_hmm import SuffixHMM  # noqa: E402
 
-st.set_page_config(page_title="Chaotic Text Generator", page_icon="🎲", layout="wide")
+st.set_page_config(page_title="Chaotic Text Generator", page_icon=":material/hub:", layout="wide")
 
 MODELS = ["HMM, plain states", "HMM, role-split states", "Trigram"]
-COLORS = {"HMM, plain states": "#9aa5b1", "HMM, role-split states": "#2f6fdf", "Trigram": "#e8590c"}
+COLORS = {"HMM, plain states": "#94a3b8", "HMM, role-split states": "#1d4ed8", "Trigram": "#ea580c"}
 NOTICE = ("The corpus is synthetic and the grammar is tiny. Metrics such as valid tag pattern are defined "
           "relative to this corpus and do not measure the quality of real English.")
 METRIC_HELP = {
@@ -31,14 +31,49 @@ METRIC_HELP = {
 }
 st.markdown("""
 <style>
-  .block-container {padding-top: 2rem;}
-  .tok {display:inline-block;text-align:center;margin:4px 5px;padding:6px 12px;border-radius:10px;
-        border:1px solid var(--c);background:color-mix(in srgb, var(--c) 8%, transparent);}
-  .tok .w {font-size:1.1rem;} .tok .t {font-size:.78rem;font-weight:700;color:var(--c);letter-spacing:.03em;}
-  .hero {padding:1.1rem 1.4rem;border-radius:14px;margin-bottom:.6rem;
-         background:linear-gradient(120deg, rgba(47,111,223,.12), rgba(232,89,12,.10));}
-  .hero h1 {margin:0;font-size:2.1rem;} .hero p {margin:.3rem 0 0;opacity:.8;}
+  .block-container {padding-top: 1.6rem; padding-bottom: 2rem; max-width: 1320px;}
+  /* header banner */
+  .hero {padding: 1.6rem 1.9rem; border-radius: 16px; margin-bottom: 1rem; color: #fff;
+         background: linear-gradient(115deg, #0f1b33 0%, #1d3a7a 60%, #1d4ed8 100%);
+         box-shadow: 0 10px 30px -12px rgba(15,27,51,.45);}
+  .hero .kicker {text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; opacity: .75; font-weight: 600;}
+  .hero h1 {margin: .25rem 0 .35rem; font-size: 2rem; font-weight: 700; color: #fff; padding: 0;}
+  .hero p {margin: 0; opacity: .85; max-width: 820px; line-height: 1.5;}
+  .hero .chips {margin-top: .9rem;}
+  .hero .chip {display: inline-block; margin: 0 .4rem .3rem 0; padding: .22rem .7rem; border-radius: 999px;
+               font-size: .75rem; font-weight: 600; background: rgba(255,255,255,.12);
+               border: 1px solid rgba(255,255,255,.22);}
+  /* section titles */
+  .sec {margin: .4rem 0 .8rem;} .sec h3 {margin: 0; font-size: 1.25rem; font-weight: 700; padding: 0;}
+  .sec p {margin: .15rem 0 0; color: #64748b; font-size: .9rem;}
+  /* KPI cards */
+  [data-testid="stMetric"] {background: #fff; border: 1px solid #dbe2ec; border-radius: 12px;
+                            padding: .9rem 1.1rem; box-shadow: 0 1px 2px rgba(15,23,42,.04);}
+  [data-testid="stMetricLabel"] p {font-size: .85rem; font-weight: 600; color: #475569;}
+  [data-testid="stMetricValue"] {font-weight: 700; color: #0f172a;}
+  /* tabs */
+  .stTabs [data-baseweb="tab-list"] {gap: .3rem; border-bottom: 1px solid #dbe2ec;}
+  .stTabs [data-baseweb="tab"] {padding: .55rem .9rem; font-weight: 600;}
+  /* sidebar */
+  [data-testid="stSidebar"] .brand {font-weight: 700; font-size: 1.05rem; color: #fff; margin-bottom: .1rem;}
+  [data-testid="stSidebar"] .brand-sub {font-size: .78rem; color: #94a3b8; margin-bottom: 1rem;}
+  [data-testid="stSidebar"] .stat {display: flex; justify-content: space-between; font-size: .82rem;
+                                   padding: .3rem 0; border-bottom: 1px solid #2a3b5e; color: #cbd5e1;}
+  [data-testid="stSidebar"] .stat b {color: #fff;}
+  /* tagger tokens */
+  .tok {display: inline-block; text-align: center; margin: 4px 5px; padding: 8px 14px; border-radius: 10px;
+        border: 1px solid var(--c); background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05);}
+  .tok .w {font-size: 1.05rem; font-weight: 500;}
+  .tok .t {font-size: .72rem; font-weight: 700; color: var(--c); letter-spacing: .06em; margin-top: 2px;}
+  .footer {margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #dbe2ec; color: #64748b; font-size: .82rem;
+           display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;}
+  .footer a {color: #1d4ed8; text-decoration: none; font-weight: 600;}
 </style>""", unsafe_allow_html=True)
+
+
+def section(title, subtitle=""):
+    st.markdown(f"<div class='sec'><h3>{title}</h3>{f'<p>{subtitle}</p>' if subtitle else ''}</div>",
+                unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ models (estimated once)
@@ -114,39 +149,46 @@ def model_scale():
 
 
 # ------------------------------------------------------------------ header + sidebar
-st.markdown("<div class='hero'><h1>🎲 Chaotic Text Generator</h1>"
-            "<p>A test bench for text generators: a part-of-speech Hidden Markov Model (plain or role-split "
-            "states) against a trigram model, with metrics on hundreds of sentences and a Viterbi tagger.</p></div>",
+st.markdown("<div class='hero'><div class='kicker'>NLP Lab 03 · Sequence models</div>"
+            "<h1>Chaotic Text Generator</h1>"
+            "<p>A test bench for text generators: a part-of-speech Hidden Markov Model with plain or role-split "
+            "states against a trigram model, evaluated on hundreds of sentences, with a Viterbi tagger and a "
+            "real-text benchmark.</p><div class='chips'><span class='chip'>Hidden Markov Model</span>"
+            "<span class='chip'>Viterbi decoding</span><span class='chip'>Trigram baseline</span>"
+            "<span class='chip'>Temperature sampling</span><span class='chip'>UD English EWT</span></div></div>",
             unsafe_allow_html=True)
-st.warning(NOTICE, icon="⚠️")
+st.warning(NOTICE, icon=":material/info:")
 
 with st.sidebar:
-    st.header("⚙️ Control panel")
+    st.markdown("<div class='brand'>Control panel</div>"
+                "<div class='brand-sub'>Generation settings</div>", unsafe_allow_html=True)
     model_name = st.selectbox("Model", MODELS, index=1)
     temperature = st.slider("Temperature", 0.3, 3.0, 1.0, 0.1,
                             help="Sampling weights are count^(1/T). T < 1 is safer, T > 1 is more varied.")
     seed = int(st.number_input("Random seed", 0, 10_000, 42))
     n = st.slider("Number of sentences", 10, 500, 500, 10)
-    go = st.button("🎲 Generate", type="primary", width="stretch")
-    st.divider()
-    st.caption(f"Training set: {len(train)} sentences · test set: {len(test)} sentences "
-               f"(split by document) · {len(train_patterns)} distinct tag patterns · "
-               f"{len(models[MODELS[0]].vocab)} words.")
+    go = st.button("Generate", type="primary", width="stretch", icon=":material/play_arrow:")
+    st.markdown("<div style='height:1.2rem'></div><div class='brand-sub'>Corpus</div>"
+                + "".join(f"<div class='stat'><span>{k}</span><b>{v}</b></div>" for k, v in [
+                    ("Training sentences", len(train)), ("Test sentences", len(test)),
+                    ("Tag patterns", len(train_patterns)), ("Vocabulary", len(models[MODELS[0]].vocab)),
+                    ("Tags", 6)]), unsafe_allow_html=True)
 
-tabs = st.tabs(["📝 Generate", "🏷️ Tagger", "📊 Compare models", "🌍 Real text", "🔍 Inside the model",
-                "📖 How it works"])
+tabs = st.tabs([":material/auto_awesome: Generate", ":material/label: Tagger", ":material/bar_chart: Compare models",
+                ":material/public: Real text", ":material/grid_on: Inside the model", ":material/menu_book: How it works"])
 
 # ------------------------------------------------------------------ 1. generate
 with tabs[0]:
     if go:
         st.session_state["batch"] = (model_name, temperature, seed, n)
     if "batch" not in st.session_state:
-        st.info("Choose a model and the settings in the control panel, then press **🎲 Generate**.")
+        st.info("Choose a model and the settings in the control panel, then press **Generate**.",
+                icon=":material/arrow_back:")
     else:
         b_model, b_temp, b_seed, b_n = st.session_state["batch"]
         df, _ = generate(b_model, b_temp, b_seed, b_n)
         m = metrics(b_model, b_temp, b_seed, b_n)
-        st.subheader(f"{b_model} · T = {b_temp} · seed {b_seed} · {b_n} sentences")
+        section(b_model, f"Temperature {b_temp} · seed {b_seed} · {b_n} generated sentences")
         c = st.columns(4)
         c[0].metric("Valid tag pattern", f"{m['valid_tag_pattern']:.1%}", help=METRIC_HELP["valid_tag_pattern"])
         c[1].metric("Plausible subject-verb", f"{m['plausible_subject_verb']:.1%}",
@@ -155,7 +197,7 @@ with tabs[0]:
         c[3].metric("Distinct-2", f"{m['distinct_2']:.3f}", help=METRIC_HELP["distinct_2"])
 
         f1, f2 = st.columns([2, 1])
-        query = f1.text_input("🔎 Filter sentences", placeholder="e.g. watch, garden, foxes …")
+        query = f1.text_input("Filter sentences", placeholder="e.g. watch, garden, foxes …")
         show = f2.radio("Show", ["all", "invalid pattern only", "copied only"], horizontal=True)
         view = df.copy()
         if query:
@@ -178,15 +220,15 @@ with tabs[0]:
                       else ""))
         out = df.copy()
         out.insert(0, "model", b_model); out.insert(1, "temperature", b_temp); out.insert(2, "seed", b_seed)
-        st.download_button("⬇️ Download CSV", out.to_csv(index_label="id").encode("utf-8"),
+        st.download_button("Download CSV", out.to_csv(index_label="id").encode("utf-8"),
                            file_name=f"generated_{b_model.split(',')[0].lower().replace(' ', '_')}"
                                      f"{'_split' if 'split' in b_model else ''}_T{b_temp}_seed{b_seed}.csv",
-                           mime="text/csv")
+                           mime="text/csv", icon=":material/download:")
 
 # ------------------------------------------------------------------ 2. tagger
 with tabs[1]:
-    st.subheader("Viterbi tagger")
-    c1, c2 = st.columns([2, 1])
+    section("Viterbi tagger", "Most probable tag sequence of a sentence, computed in log space.")
+    c1, c2 = st.columns([1, 1])
     tagger_name = c1.radio("Tagger", MODELS[:2], horizontal=True)
     use_suffix = c2.toggle("Guess unknown words from their suffix", value=False,
                            help="Extension: an unknown word gets P(tag | suffix) instead of the flat smoothed "
@@ -204,7 +246,7 @@ with tabs[1]:
         if unknown:
             st.warning(f"Out-of-vocabulary word(s): **{', '.join(unknown)}**. Their tag is a guess"
                        + (" from the word suffix." if use_suffix else
-                          " (smoothed emission only). Try the suffix toggle."), icon="⚠️")
+                          " (smoothed emission only). Try the suffix toggle."), icon=":material/warning:")
         tags = tagger.viterbi(words)
         chips = []
         for w, t in zip(words, tags):
@@ -221,7 +263,7 @@ with tabs[1]:
 
 # ------------------------------------------------------------------ 3. compare
 with tabs[2]:
-    st.subheader("Three models at the same settings")
+    section("Three models at the same settings")
     st.caption(f"T = {temperature}, seed = {seed}, {n} sentences per model (from the control panel).")
     table = pd.DataFrame([{"model": name, **metrics(name, temperature, seed, n)} for name in MODELS]).set_index("model")
     table = table[list(METRIC_HELP)].rename(columns=lambda k: k.replace("_", " "))
@@ -246,7 +288,7 @@ with tabs[2]:
 
 # ------------------------------------------------------------------ 4. real text
 with tabs[3]:
-    st.subheader("The same HMM on real text: Universal Dependencies English EWT")
+    section("Real text: Universal Dependencies English EWT", "The same HMM and Viterbi code, estimated on real web text.")
     try:
         with open("results/ewt_results.json", encoding="utf-8") as f:
             ewt = json.load(f)
@@ -263,7 +305,8 @@ with tabs[3]:
         for name, r in ewt["models"].items():
             rows.append({"model": f"EWT: {name}", "accuracy": r["accuracy"], "known words": r["known_words"],
                          "unknown words": r["unknown_words"], "whole sentence": r["whole_sentence"]})
-        st.dataframe(pd.DataFrame(rows).set_index("model").style.format("{:.1%}", na_rep="—"), width="stretch")
+        real = pd.DataFrame(rows).set_index("model")
+        st.dataframe(real.apply(lambda col: col.map(lambda v: "—" if pd.isna(v) else f"{v:.1%}")), width="stretch")
         unk = ewt["models"]["HMM + Viterbi"]["unknown_share_of_tokens"]
         c = st.columns(3)
         c[0].metric("Unknown test tokens", f"{unk:.1%}")
@@ -291,7 +334,7 @@ with tabs[3]:
 
 # ------------------------------------------------------------------ 5. inside
 with tabs[4]:
-    st.subheader("Transition matrix P(next state | state)")
+    section("Transition matrix", "P(next state | state), estimated by counting on the training set.")
     which = st.radio("States", MODELS[:2], horizontal=True, key="heat")
     tags_, mat = models[which].transition_matrix()
     heat = pd.DataFrame([{"from": a, "to": b, "p": mat[i][j]} for i, a in enumerate(tags_)
@@ -315,7 +358,7 @@ with tabs[4]:
 
 # ------------------------------------------------------------------ 6. how it works
 with tabs[5]:
-    st.subheader("How it works")
+    section("How it works")
     st.markdown(r"""
 **Hidden Markov Model.** The hidden states are part-of-speech tags and the observations are words. Three tables are
 estimated by counting on the 960 training sentences (no training loop): start probabilities, transitions
@@ -343,6 +386,6 @@ reproduce its training data: never train one on private messages you do not own.
 meaning or intent: do not present it as written by a person.
 """)
 
-st.divider()
-st.caption("Lab 03 · NLP · Hidden Markov Model, Viterbi and trigram · "
-           "[source code](https://github.com/hichamouaouche/hmm-text-generator)")
+st.markdown("<div class='footer'><span>NLP Lab 03 · Hidden Markov Model, Viterbi decoding and trigram "
+            "baseline</span><span><a href='https://github.com/hichamouaouche/hmm-text-generator'>Source code on "
+            "GitHub</a></span></div>", unsafe_allow_html=True)

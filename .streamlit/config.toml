@@ -1,6 +1,25 @@
 [theme]
-primaryColor = "#2f6fdf"
-font = "sans serif"
+base = "light"
+primaryColor = "#1d4ed8"
+backgroundColor = "#f5f7fb"
+secondaryBackgroundColor = "#eaeef5"
+textColor = "#0f172a"
+borderColor = "#dbe2ec"
+showWidgetBorder = true
+baseRadius = "0.6rem"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+codeFont = "monospace"
+chartCategoricalColors = ["#94a3b8", "#1d4ed8", "#ea580c"]
+
+[theme.sidebar]
+backgroundColor = "#0f1b33"
+secondaryBackgroundColor = "#1a2a4a"
+textColor = "#e2e8f0"
+borderColor = "#2a3b5e"
+
+[client]
+toolbarMode = "minimal"
 
 [server]
 headless = true
