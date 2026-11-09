@@ -10,6 +10,7 @@ import urllib.request
 from collections import Counter, defaultdict
 
 from src.pipeline import HMM
+from src.suffix_hmm import SuffixHMM
 
 BASE = "https://raw.githubusercontent.com/UniversalDependencies/UD_English-EWT/master/"
 FILES = {"train": "en_ewt-ud-train.conllu", "test": "en_ewt-ud-test.conllu"}
@@ -69,6 +70,7 @@ def main():
     print(f"distinct tag sequences in the training set: {len(patterns)} (synthetic corpus: 16)")
 
     hmm = HMM(train)
+    suffix_hmm = SuffixHMM(train)                      # extension: suffix model for unknown words
     print(f"tags: {len(hmm.tags)}, vocabulary: {len(hmm.vocab)} words (synthetic corpus: 6 tags, 61 words)\n")
 
     most_freq = defaultdict(Counter)                   # baseline: most frequent tag of each word
@@ -78,19 +80,28 @@ def main():
     overall = Counter(t for _, tags in train for t in tags).most_common(1)[0][0]
     baseline = lambda ws: [most_freq[w].most_common(1)[0][0] if w in most_freq else overall for w in ws]
 
-    results = {}
-    print(f"{'model':<20}{'accuracy':>9}{'known':>9}{'unknown':>9}{'sentence':>10}")
-    for name, fn in (("most-frequent tag", baseline), ("HMM + Viterbi", hmm.viterbi)):
+    results, confusions = {}, {}
+    print(f"{'model':<26}{'accuracy':>9}{'known':>9}{'unknown':>9}{'sentence':>10}")
+    for name, fn in (("most-frequent tag", baseline), ("HMM + Viterbi", hmm.viterbi),
+                     ("HMM + Viterbi + suffixes", suffix_hmm.viterbi)):
         r, conf = score(test, fn, hmm.vocab)
-        results[name] = r
-        print(f"{name:<20}{r['accuracy']:>9.1%}{r['known_words']:>9.1%}{r['unknown_words']:>9.1%}{r['whole_sentence']:>10.1%}")
+        results[name], confusions[name] = r, conf
+        print(f"{name:<26}{r['accuracy']:>9.1%}{r['known_words']:>9.1%}{r['unknown_words']:>9.1%}{r['whole_sentence']:>10.1%}")
     unk = results["HMM + Viterbi"]["unknown_share_of_tokens"]
     print(f"\nunknown words (not in the training vocabulary) are {unk:.1%} of the test tokens")
     print("\nmost frequent HMM errors (gold -> predicted):")
+    conf = confusions["HMM + Viterbi"]
     for (g, p), c in conf.most_common(8):
         print(f"  {g:>6} -> {p:<6} {c}")
     os.makedirs("results", exist_ok=True)
-    json.dump({"models": results, "confusions": [[g, p, c] for (g, p), c in conf.most_common(20)]},
+    print("\nmost frequent errors with the suffix model:")
+    for (g, p), c in confusions["HMM + Viterbi + suffixes"].most_common(8):
+        print(f"  {g:>6} -> {p:<6} {c}")
+    json.dump({"models": results, "n_train": len(train), "n_test": len(test),
+               "distinct_tag_sequences": len(patterns),
+               "confusions": [[g, p, c] for (g, p), c in conf.most_common(20)],
+               "confusions_suffix": [[g, p, c] for (g, p), c in
+                                     confusions["HMM + Viterbi + suffixes"].most_common(20)]},
               open("results/ewt_results.json", "w"), indent=2)
     print("\nSaved results/ewt_results.json")
 

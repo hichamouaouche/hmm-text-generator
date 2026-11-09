@@ -13,8 +13,18 @@
       "unknown_words": 0.2821466524973433,
       "unknown_share_of_tokens": 0.07499800749183072,
       "whole_sentence": 0.40442946557534903
+    },
+    "HMM + Viterbi + suffixes": {
+      "accuracy": 0.9165139077070216,
+      "known_words": 0.9358952266069275,
+      "unknown_words": 0.677470775770457,
+      "unknown_share_of_tokens": 0.07499800749183072,
+      "whole_sentence": 0.4939817043813192
     }
   },
+  "n_train": 12544,
+  "n_test": 2077,
+  "distinct_tag_sequences": 10359,
   "confusions": [
     [
       "PROPN",
@@ -115,6 +125,108 @@
       "PROPN",
       "DET",
       39
+    ]
+  ],
+  "confusions_suffix": [
+    [
+      "PROPN",
+      "NOUN",
+      421
+    ],
+    [
+      "NOUN",
+      "PROPN",
+      164
+    ],
+    [
+      "VERB",
+      "NOUN",
+      109
+    ],
+    [
+      "VERB",
+      "AUX",
+      106
+    ],
+    [
+      "NOUN",
+      "VERB",
+      87
+    ],
+    [
+      "SCONJ",
+      "ADP",
+      70
+    ],
+    [
+      "NOUN",
+      "ADJ",
+      70
+    ],
+    [
+      "ADV",
+      "ADP",
+      57
+    ],
+    [
+      "PROPN",
+      "ADJ",
+      56
+    ],
+    [
+      "ADV",
+      "ADJ",
+      54
+    ],
+    [
+      "ADJ",
+      "VERB",
+      49
+    ],
+    [
+      "ADP",
+      "ADV",
+      49
+    ],
+    [
+      "ADJ",
+      "NOUN",
+      45
+    ],
+    [
+      "ADJ",
+      "ADV",
+      40
+    ],
+    [
+      "PUNCT",
+      "SYM",
+      35
+    ],
+    [
+      "AUX",
+      "VERB",
+      35
+    ],
+    [
+      "PROPN",
+      "VERB",
+      34
+    ],
+    [
+      "PRON",
+      "SCONJ",
+      32
+    ],
+    [
+      "ADP",
+      "PART",
+      28
+    ],
+    [
+      "PROPN",
+      "NUM",
+      28
     ]
   ]
 }
